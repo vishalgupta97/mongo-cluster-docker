@@ -1,0 +1,101 @@
+version: '3'
+services:
+  config01:
+    image: mongo
+    hostname: config01
+    entrypoint: /bin/bash -c 'docker-entrypoint.sh mongod --port 27017 --configsvr --replSet configserver --noprealloc --smallfiles --oplogSize 16 --noauth & sleep 50; mongo --port 27017 < /scripts/init-configserver.js; sleep infinity'
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  config02:
+    image: mongo
+    hostname: config02
+    command: mongod --port 27017 --configsvr --replSet configserver --noprealloc --smallfiles --oplogSize 16 --noauth
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  config03:
+    image: mongo
+    hostname: config03
+    command: mongod --port 27017 --configsvr --replSet configserver --noprealloc --smallfiles --oplogSize 16 --noauth
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+
+  ## Shards
+  shard01a:
+    image: mongo
+    hostname: shard01a
+    entrypoint: /bin/bash -c 'docker-entrypoint.sh mongod --port 27018 --shardsvr --replSet shard01 --noprealloc --smallfiles --oplogSize 16 --noauth & sleep 20; mongo --port 27018 < /scripts/init-shard01.js; sleep infinity'
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  shard01b:
+    image: mongo
+    hostname: shard01b
+    command: mongod --port 27018 --shardsvr --replSet shard01 --noprealloc --smallfiles --oplogSize 16 --noauth
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  shard02a:
+    image: mongo
+    hostname: shard029
+    entrypoint: /bin/bash -c 'docker-entrypoint.sh mongod --port 27019 --shardsvr --replSet shard02 --noprealloc --smallfiles --oplogSize 16 --noauth & sleep 20; mongo --port 27019 < /scripts/init-shard02.js; sleep infinity'
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  shard02b:
+    image: mongo
+    hostname: shard02b
+    command: mongod --port 27019 --shardsvr --replSet shard02 --noprealloc --smallfiles --oplogSize 16 --noauth
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  shard03a:
+    image: mongo
+    hostname: shard03a
+    entrypoint: /bin/bash -c 'docker-entrypoint.sh mongod --port 27020 --shardsvr --replSet shard03 --noprealloc --smallfiles --oplogSize 16 --noauth & sleep 20; mongo --port 27020 < /scripts/init-shard03.js; sleep infinity'
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+  shard03b:
+    image: mongo
+    hostname: shard03b
+    command: mongod --port 27020 --shardsvr --replSet shard03 --noprealloc --smallfiles --oplogSize 16 --noauth
+    volumes:
+      - /tmp/scripts:/scripts
+    networks:
+      - mongonet
+
+  ## Router
+  router:
+    image: mongo
+    hostname: router
+    entrypoint: /bin/bash -c 'docker-entrypoint.sh mongos --port 27017 --configdb configserver/config01:27017,config02:27017,config03:27017 --noauth --bind_ip_all & sleep 70; mongo < /scripts/init-router.js; sleep infinity'
+    ports:
+      - "27017:27017"
+    networks:
+      - mongonet
+    volumes:
+      - /tmp/scripts:/scripts
+    depends_on:
+      - config01
+      - config02
+      - config03
+      - shard01a
+      - shard01b
+      - shard02a
+      - shard02b
+      - shard03a
+      - shard03b
+
+networks:
+  mongonet:
